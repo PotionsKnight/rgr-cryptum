@@ -41,6 +41,47 @@ bool requests_help(const std::vector<std::string>& arguments)
 		if (argument == "-h" || argument == "--help") return true;
 	return false;
 }
+
+void validate(const CliOptions& options)
+{
+	if (options.mode == MODE_GENERATE_KEY)
+	{
+		if (options.has_input) throw std::runtime_error("--input is not used in generate-key mode");
+		if (options.has_output)
+			throw std::runtime_error("--output is not used in generate-key mode");
+		if (options.has_key) throw std::runtime_error("--key is not used in generate-key mode");
+		if (options.generate_key)
+			throw std::runtime_error("--generate-key is not used in generate-key mode");
+		if (!options.has_save_key)
+			throw std::runtime_error("generate-key mode requires --save-key or --write-key");
+		return;
+	}
+
+	if (options.has_key && options.generate_key)
+		throw std::runtime_error("--key and --generate-key cannot be combined");
+	if (!options.has_key && !options.generate_key)
+		throw std::runtime_error("encryption and decryption require --key or --generate-key");
+
+	if (options.mode == MODE_DECRYPT)
+	{
+		if (options.generate_key)
+			throw std::runtime_error("--generate-key cannot be used in decrypt mode");
+		if (options.has_save_key)
+			throw std::runtime_error("--save-key and --write-key cannot be used in decrypt mode");
+	}
+
+	if (options.generate_key && !options.has_save_key)
+		throw std::runtime_error("--generate-key requires --save-key or --write-key, otherwise the"
+		                         " generated key is lost irrecoverably");
+
+	const bool input_from_standard_input = !options.has_input || options.input_path == "-";
+	if (input_from_standard_input && options.has_key && options.key_path == "-")
+		throw std::runtime_error("the data and the key cannot both be read from standard input");
+
+	const bool output_to_standard_output = !options.has_output || options.output_path == "-";
+	if (output_to_standard_output && options.has_save_key && options.save_key_path == "-")
+		throw std::runtime_error("the data and the key cannot both be written to standard output");
+}
 } // namespace
 
 CliOptions parse_command_line(int argument_count, char** arguments)
@@ -123,6 +164,13 @@ CliOptions parse_command_line(int argument_count, char** arguments)
 	if (!algorithm_given) throw std::runtime_error("missing required option --algorithm");
 	if (!mode_given) throw std::runtime_error("missing required option --mode");
 	options.mode = parse_mode(mode_name);
+	validate(options);
+
+	if (options.mode != MODE_GENERATE_KEY)
+	{
+		if (!options.has_input) options.input_path = "-";
+		if (!options.has_output) options.output_path = "-";
+	}
 
 	return options;
 }
