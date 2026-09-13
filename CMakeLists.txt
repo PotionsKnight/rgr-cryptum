@@ -16,3 +16,7 @@ if(MSVC)
 else()
 	add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
+
+add_library(common STATIC common/random_bytes.cpp common/secure_memory.cpp)
+target_include_directories(common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set_target_properties(common PROPERTIES POSITION_INDEPENDENT_CODE ON)
