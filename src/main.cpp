@@ -1,3 +1,4 @@
+#include "algorithm_registry.h"
 #include "cli_options.h"
 #include "platform.h"
 
@@ -27,7 +28,11 @@ void print_help()
 	             "\n"
 	             "An option takes its argument as '--option value', '--option=value' or\n"
 	             "'-o value'; combined short options and attached short values are not "
-	             "supported.\n";
+	             "supported.\n"
+	             "\n"
+	             "Algorithms:\n"
+	             "  "
+	          << cryptum::supported_algorithms() << "\n";
 }
 } // namespace
 
