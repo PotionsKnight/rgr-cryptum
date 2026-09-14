@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 
 namespace cryptum
 {
@@ -34,6 +35,20 @@ void write_bytes(std::ostream& stream, const std::uint8_t* data, std::size_t siz
 {
 	stream.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
 	if (!stream) throw std::runtime_error("writing the output failed");
+}
+
+void read_key(const std::string& path, const std::string& algorithm_name, std::uint8_t* data,
+              std::size_t size)
+{
+	std::ifstream file;
+	std::istream& stream = open_input(path, file);
+
+	// One byte beyond the expected length is read on purpose: it tells a key file that is too
+	// long from one of exactly the right size, without seeking in a stream that may be a pipe.
+	std::uint8_t beyond = 0;
+	if (read_bytes(stream, data, size) != size || read_bytes(stream, &beyond, 1) != 0)
+		throw std::runtime_error("the key for " + algorithm_name + " must be exactly "
+		                         + std::to_string(size) + " bytes long");
 }
 
 void write_key(const std::string& path, const std::uint8_t* data, std::size_t size)
