@@ -1,4 +1,5 @@
 #include "cli_options.h"
+#include "platform.h"
 
 #include <exception>
 #include <iostream>
@@ -34,6 +35,8 @@ int main(int argument_count, char** arguments)
 {
 	try
 	{
+		cryptum::initialise_platform();
+
 		const cryptum::CliOptions options = cryptum::parse_command_line(argument_count, arguments);
 		if (options.mode == cryptum::MODE_HELP) print_help();
 		return 0;
