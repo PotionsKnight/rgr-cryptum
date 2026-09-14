@@ -21,5 +21,5 @@ add_library(common STATIC common/random_bytes.cpp common/secure_memory.cpp)
 target_include_directories(common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set_target_properties(common PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_executable(cryptum src/main.cpp src/cli_options.cpp)
+add_executable(cryptum src/main.cpp src/cli_options.cpp src/byte_io.cpp src/platform.cpp)
 target_link_libraries(cryptum PRIVATE common)
