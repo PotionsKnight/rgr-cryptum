@@ -1,8 +1,10 @@
 #include "crypto_abi.h"
+#include "random_bytes.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <stdexcept>
 
 namespace
 {
@@ -19,6 +21,28 @@ extern "C"
 	const AlgorithmInfo* get_algorithm_info(void) { return &ALGORITHM_INFO; }
 
 	size_t get_output_size(size_t input_size, int) { return input_size; }
+
+	// Every sequence of sixteen bytes is a valid key, so the random bytes are used as they come.
+	int generate_key(MutBuffer* key)
+	{
+		try
+		{
+			if (key == nullptr || key->data == nullptr || key->size < KEY_SIZE)
+				return CRYPTO_ERROR_INVALID_BUFFER;
+
+			cryptum::fill_random_bytes(key->data, KEY_SIZE);
+			key->size = KEY_SIZE;
+			return CRYPTO_OK;
+		}
+		catch (const std::runtime_error&)
+		{
+			return CRYPTO_ERROR_RANDOM_FAILURE;
+		}
+		catch (...)
+		{
+			return CRYPTO_ERROR_INTERNAL;
+		}
+	}
 
 	// C[i] = K[i mod 16] - P[i] (mod 256), where i is the absolute index of the byte in the
 	// stream; it is taken from the address of the byte so that the lambda needs no state.
