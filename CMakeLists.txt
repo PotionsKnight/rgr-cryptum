@@ -44,3 +44,6 @@ target_link_libraries(substitution PRIVATE common)
 
 add_library(beaufort SHARED lib/beaufort/beaufort.cpp)
 target_link_libraries(beaufort PRIVATE common)
+
+add_library(trithemius SHARED lib/trithemius/trithemius.cpp)
+target_link_libraries(trithemius PRIVATE common)
