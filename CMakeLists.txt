@@ -41,3 +41,6 @@ target_link_libraries(cryptum PRIVATE common ${CMAKE_DL_LIBS})
 
 add_library(substitution SHARED lib/substitution/substitution.cpp)
 target_link_libraries(substitution PRIVATE common)
+
+add_library(beaufort SHARED lib/beaufort/beaufort.cpp)
+target_link_libraries(beaufort PRIVATE common)
