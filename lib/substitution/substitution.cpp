@@ -1,10 +1,15 @@
 #include "crypto_abi.h"
+#include "random_bytes.h"
 #include "secure_memory.h"
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <numeric>
+#include <random>
+#include <stdexcept>
 
 namespace
 {
@@ -24,6 +29,23 @@ bool is_valid_key(ConstBuffer key)
 	                   [](std::uint8_t count) { return count == 1; });
 }
 
+// A uniform random bit generator is what std::shuffle expects; this one draws from the
+// system random source instead of a seeded pseudo random engine.
+struct SecureRandomEngine
+{
+	using result_type = std::uint32_t;
+
+	static constexpr result_type min() { return 0; }
+	static constexpr result_type max() { return std::numeric_limits<result_type>::max(); }
+
+	result_type operator()() const
+	{
+		result_type value = 0;
+		cryptum::fill_random_bytes(reinterpret_cast<std::uint8_t*>(&value), sizeof(value));
+		return value;
+	}
+};
+
 void apply_table(const std::uint8_t* table, ConstBuffer input, MutBuffer* output)
 {
 	std::transform(input.data, input.data + input.size, output->data,
@@ -37,6 +59,28 @@ extern "C"
 	const AlgorithmInfo* get_algorithm_info(void) { return &ALGORITHM_INFO; }
 
 	size_t get_output_size(size_t input_size, int) { return input_size; }
+
+	int generate_key(MutBuffer* key)
+	{
+		try
+		{
+			if (key == nullptr || key->data == nullptr || key->size < KEY_SIZE)
+				return CRYPTO_ERROR_INVALID_BUFFER;
+
+			std::iota(key->data, key->data + KEY_SIZE, std::uint8_t{0});
+			std::shuffle(key->data, key->data + KEY_SIZE, SecureRandomEngine{});
+			key->size = KEY_SIZE;
+			return CRYPTO_OK;
+		}
+		catch (const std::runtime_error&)
+		{
+			return CRYPTO_ERROR_RANDOM_FAILURE;
+		}
+		catch (...)
+		{
+			return CRYPTO_ERROR_INTERNAL;
+		}
+	}
 
 	// The substitution is position independent, so the stream offset is not used here.
 	int encrypt(ConstBuffer key, ConstBuffer input, MutBuffer* output, uint64_t)
