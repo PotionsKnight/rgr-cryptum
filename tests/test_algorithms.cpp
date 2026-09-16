@@ -133,19 +133,97 @@ void substitution_one_mebibyte()
 void beaufort_one_mebibyte() { check_round_trip("beaufort", pseudo_random_bytes(1024 * 1024)); }
 void trithemius_one_mebibyte() { check_round_trip("trithemius", pseudo_random_bytes(1024 * 1024)); }
 
+void check_chunked_matches_single_call(const char* library)
+{
+	cryptum::CryptoModule module;
+	cryptum::load_module(module, library);
+
+	const Bytes key       = generated_key(module);
+	const Bytes plaintext = pseudo_random_bytes(1000);
+	const Bytes whole     = apply(module.encrypt, key, plaintext, 0);
+
+	const std::size_t CHUNKS[] = {1, 7, 13, 64, 300, 615};
+	Bytes             chunked;
+	std::size_t       offset = 0;
+	for (std::size_t size : CHUNKS)
+	{
+		const Bytes part(plaintext.begin() + static_cast<std::ptrdiff_t>(offset),
+		                 plaintext.begin() + static_cast<std::ptrdiff_t>(offset + size));
+		const Bytes encrypted = apply(module.encrypt, key, part, offset);
+		chunked.insert(chunked.end(), encrypted.begin(), encrypted.end());
+		offset += size;
+	}
+
+	require(offset == plaintext.size(), "the chunks do not cover the whole input");
+	require(chunked == whole, "chunk by chunk encryption differs from a single call");
+}
+
+void check_key_generation(const char* library)
+{
+	cryptum::CryptoModule module;
+	cryptum::load_module(module, library);
+
+	const AlgorithmInfo* info = module.get_algorithm_info();
+	require(generated_key(module).size() == info->key_size,
+	        "the generated key does not have the declared length");
+
+	Bytes     too_small(info->key_size - 1);
+	MutBuffer target{too_small.data(), too_small.size()};
+	require(module.generate_key(&target) == CRYPTO_ERROR_INVALID_BUFFER,
+	        "a buffer smaller than the key length was accepted");
+}
+
+void substitution_chunks() { check_chunked_matches_single_call("substitution"); }
+void beaufort_chunks() { check_chunked_matches_single_call("beaufort"); }
+void trithemius_chunks() { check_chunked_matches_single_call("trithemius"); }
+
+void substitution_key_generation() { check_key_generation("substitution"); }
+void beaufort_key_generation() { check_key_generation("beaufort"); }
+void trithemius_key_generation() { check_key_generation("trithemius"); }
+
+void substitution_rejects_invalid_keys()
+{
+	cryptum::CryptoModule module;
+	cryptum::load_module(module, "substitution");
+
+	const Bytes       plaintext = {0x41, 0x42, 0x43};
+	Bytes             output(plaintext.size());
+	MutBuffer         target{output.data(), output.size()};
+	const ConstBuffer source{plaintext.data(), plaintext.size()};
+
+	const Bytes repeated(256, 0x00);
+	require(module.encrypt(ConstBuffer{repeated.data(), repeated.size()}, source, &target, 0)
+	            == CRYPTO_ERROR_INVALID_KEY,
+	        "a key that is not a permutation was accepted");
+
+	const Bytes wrong_length(16, 0x00);
+	require(
+	    module.encrypt(ConstBuffer{wrong_length.data(), wrong_length.size()}, source, &target, 0)
+	        == CRYPTO_ERROR_INVALID_KEY,
+	    "a key of the wrong length was accepted");
+}
+
 const TestCase TESTS[] = {
     {"substitution: known answer", substitution_known_answer},
     {"substitution: empty input", substitution_empty_input},
     {"substitution: length that is not a multiple of the key length", substitution_unaligned_input},
     {"substitution: one mebibyte of pseudo random data", substitution_one_mebibyte},
+    {"substitution: chunk by chunk equals a single call", substitution_chunks},
+    {"substitution: generated key length", substitution_key_generation},
     {"beaufort: known answer", beaufort_known_answer},
     {"beaufort: empty input", beaufort_empty_input},
     {"beaufort: length that is not a multiple of the key length", beaufort_unaligned_input},
     {"beaufort: one mebibyte of pseudo random data", beaufort_one_mebibyte},
+    {"beaufort: chunk by chunk equals a single call", beaufort_chunks},
+    {"beaufort: generated key length", beaufort_key_generation},
     {"trithemius: known answer", trithemius_known_answer},
     {"trithemius: empty input", trithemius_empty_input},
     {"trithemius: length that is not a multiple of the key length", trithemius_unaligned_input},
     {"trithemius: one mebibyte of pseudo random data", trithemius_one_mebibyte},
+    {"trithemius: chunk by chunk equals a single call", trithemius_chunks},
+    {"trithemius: generated key length", trithemius_key_generation},
+    {"substitution: a key that is not a permutation is rejected",
+     substitution_rejects_invalid_keys},
 };
 } // namespace
 
