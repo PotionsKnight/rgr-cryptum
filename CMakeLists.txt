@@ -47,3 +47,8 @@ target_link_libraries(beaufort PRIVATE common)
 
 add_library(trithemius SHARED lib/trithemius/trithemius.cpp)
 target_link_libraries(trithemius PRIVATE common)
+
+add_executable(test_algorithms tests/test_algorithms.cpp src/crypto_module.cpp)
+target_include_directories(test_algorithms PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_algorithms PRIVATE common ${CMAKE_DL_LIBS})
+add_dependencies(test_algorithms substitution beaufort trithemius)
